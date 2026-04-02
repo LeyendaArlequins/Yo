@@ -1,0 +1,44 @@
+
+
+local function antiDump()
+    -- 1. Restaurar funciones hookeadas
+    local toRestore = {loadstring, request, http_request}
+    for _, fn in ipairs(toRestore) do
+        pcall(function()
+            if isfunctionhooked(fn) then
+                restorefunction(fn)
+            end
+        end)
+    end
+
+    -- 2. Restaurar metamethods
+    pcall(function()
+        local mt = getrawmetatable(game)
+        local methods = {'__namecall', '__index', '__newindex'}
+        for _, method in ipairs(methods) do
+            if isfunctionhooked(mt[method]) then
+                restorefunction(mt[method])
+            end
+        end
+    end)
+
+    -- 3. Subir identity
+    setthreadidentity(8)
+
+    -- 4. Cachear funciones limpias
+    local safeLoad = clonefunction(loadstring)
+    local safeHttpGet = clonefunction(game.HttpGet)
+
+    return safeLoad, safeHttpGet
+end
+
+local safeLoad, safeHttpGet = antiDump()
+
+-- Verificar que quedó limpio
+if isfunctionhooked(loadstring) then
+    warn("[AntiDump] No se pudo limpiar loadstring")
+    return
+end
+
+-- Ejecutar tu script de forma segura
+safeLoad(safeHttpGet(game, "https://raw.githubusercontent.com/LeyendaArlequins/Yo/refs/heads/main/yo", true))()
